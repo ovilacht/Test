@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stoffgemische im Stoffteilchenmodell</title>
+<style>
+  :root{
+    --ink:#1c2536; --muted:#5b6678; --line:#d5dbe3; --bg:#f3f5f8; --card:#ffffff;
+    --accent:#1f4e8c; --accent-soft:#e3ecf8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:14px 24px 6px;}
+  header h1{margin:0;font-size:1.45rem;font-weight:650;letter-spacing:.01em}
+  header .autor{font-size:.9rem;color:var(--muted);white-space:nowrap}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px 28px}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+  .tabs button{font:inherit;font-size:1rem;padding:8px 16px;border:1px solid var(--line);background:var(--card);
+    border-radius:8px;cursor:pointer;color:var(--ink)}
+  .tabs button:hover{border-color:var(--accent)}
+  .tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .tabs button.cmp{margin-left:auto}
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin:0 0 12px}
+  .controls button{font:inherit;padding:7px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent-soft);
+    color:var(--accent);font-weight:600;cursor:pointer}
+  .controls button:hover{background:#d3e1f5}
+  .controls label{font-size:.95rem;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
+  .controls .state{font-size:.95rem;color:var(--muted)}
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px 14px;min-width:0}
+  .panel h2{margin:0 0 8px;font-size:1.05rem;font-weight:650}
+  .panel h2 span{font-weight:400;color:var(--muted)}
+  canvas{display:block;width:100%;aspect-ratio:320/260;border-radius:8px;border:1px solid var(--line);background:#fff}
+  .note{margin:10px 0 0;font-size:.98rem;line-height:1.4;min-height:2.8em}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:10px 0 0;min-height:2.8em;align-items:center}
+  .legend .it{display:flex;align-items:center;gap:6px;font-size:.98rem}
+  .legend canvas{width:30px;height:24px;aspect-ratio:auto;border:0;background:none;border-radius:0}
+  .facts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+  .fact{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+  .fact b{display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px;font-weight:600}
+  .fact div{font-size:1rem;line-height:1.4}
+  .fact.wide{grid-column:span 2}
+  .hint{font-size:.85rem;color:var(--muted);margin:12px 2px 0;line-height:1.45}
+  /* Vergleich */
+  .cmpgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .cmpgrid .panel{padding:10px}
+  .cmpgrid h2{font-size:1.05rem;margin-bottom:2px}
+  .cmpgrid .sub{font-size:.85rem;color:var(--muted);margin:0 0 8px;min-height:2.3em;line-height:1.25}
+  .cmpgrid .cap{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:8px 0 4px;font-weight:600}
+  .cmpgrid .txt{font-size:.88rem;line-height:1.35;margin:8px 0 0}
+  .badge{display:inline-block;font-size:.75rem;font-weight:600;padding:2px 8px;border-radius:99px;margin-top:8px}
+  .badge.hom{background:#dff3e4;color:#1d6b34}
+  .badge.het{background:#fde9d2;color:#9a4d06}
+  [hidden]{display:none !important}
+  @media (max-width:1000px){ .cmpgrid{grid-template-columns:repeat(3,1fr)} .facts{grid-template-columns:1fr 1fr} }
+  @media (max-width:720px){ .duo{grid-template-columns:1fr} .cmpgrid{grid-template-columns:1fr 1fr} .tabs button.cmp{margin-left:0} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Stoffgemische im Stoffteilchenmodell</h1>
+  <div class="autor">Autor: Ivo Herrmann</div>
+</header>
+
+<div class="wrap">
+  <div class="tabs" id="tabs"></div>
+
+  <div class="controls">
+    <button id="btnSettle">Stehen lassen</button>
+    <button id="btnPause">Pause</button>
+    <label><input type="checkbox" id="chkMark" checked> Körnchen und Tröpfchen markieren</label>
+    <span class="state" id="state"></span>
+  </div>
+
+  <!-- Einzelansicht -->
+  <div id="single">
+    <div class="duo">
+      <div class="panel">
+        <h2>Stoffebene <span>– das beobachtet man</span></h2>
+        <canvas id="macro"></canvas>
+        <p class="note" id="obs"></p>
+      </div>
+      <div class="panel">
+        <h2>Stoffteilchenebene <span>– so erklärt es das Modell</span></h2>
+        <canvas id="micro"></canvas>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>Beispiel</b><div id="fBsp"></div></div>
+      <div class="fact"><b>Art des Gemischs</b><div id="fArt"></div></div>
+      <div class="fact wide"><b>Auf Stoffteilchenebene</b><div id="fTeil"></div></div>
+    </div>
+  </div>
+
+  <!-- Vergleich -->
+  <div id="compare" hidden>
+    <div class="cmpgrid" id="cmpgrid"></div>
+  </div>
+
+  <p class="hint">
+    Hinter jedem Gefäß steht eine Streifenkarte: Sind die Streifen scharf zu sehen, ist das Gemisch klar; sind sie verdeckt, ist es trüb.
+    Modellhinweise: Die Stoffteilchen sind stark vergrößert und vereinfacht gezeichnet, ihre Farben und Formen dienen nur der Unterscheidung.
+    Zwischen den Stoffteilchen ist nichts. Luft ist vereinfacht als eine Teilchensorte dargestellt. Echte Körnchen und Tröpfchen bestehen aus unvorstellbar vielen Stoffteilchen.
+  </p>
+</div>
+
+<script>
+"use strict";
+const W=320, H=260, R=7, TAU=Math.PI*2;
+const rnd=(a=1)=>(Math.random()-.5)*a;
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const sm=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+
+/* ---------- Stoffteilchen-Sorten ---------- */
+const KIND={
+  wasser:{name:"Wasser-Teilchen", fill:"#3f8be0", edge:"#1b4f95", shape:"ellipse"},
+  zucker:{name:"Zucker-Teilchen", fill:"#e8437f", edge:"#8f1444", shape:"octagon"},
+  lehm:  {name:"Lehm-Teilchen",   fill:"#a4683a", edge:"#5a3413", shape:"square"},
+  oel:   {name:"Öl-Teilchen",     fill:"#f6bd0c", edge:"#8f6a00", shape:"triangle"},
+  luft:  {name:"Luft-Teilchen",   fill:"#8ed6b1", edge:"#2f8760", shape:"pentagon"},
+  russ:  {name:"Ruß-Teilchen",    fill:"#3b3b44", edge:"#0e0e12", shape:"hexagon"}
+};
+const POLY={triangle:[3,R*1.3,0], square:[4,R*1.28,Math.PI/4], hexagon:[6,R*1.05,Math.PI/6], octagon:[8,R*1.05,0], pentagon:[5,R*1.12,0]};
+
+function pathShape(ctx,shape,x,y,a){
+  if(shape==="ellipse"){
+    const rx=R*1.06;
+    ctx.moveTo(x+rx*Math.cos(a), y+rx*Math.sin(a));
+    ctx.ellipse(x,y,rx,R*0.7,a,0,TAU);
+    return;
+  }
+  const [n,rad,off]=POLY[shape];
+  for(let k=0;k<n;k++){
+    const t=a+off+k*TAU/n, px=x+rad*Math.cos(t), py=y+rad*Math.sin(t);
+    if(k===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+}
+
+/* ---------- Gemische ---------- */
+const MIX={
+  loesung:{
+    title:"Lösung", bsp:"Zucker in Wasser (Zuckerwasser)",
+    art:"fest in flüssig gelöst", hom:true,
+    medium:"liq", bg:"wasser", solute:"zucker", cluster:null,
+    obs:"Klar und durchsichtig. Der Zucker ist nicht mehr zu erkennen – auch nicht mit dem Mikroskop.",
+    stand:"Auch nach langem Stehen bleibt die Lösung klar und einheitlich. Nichts setzt sich ab.",
+    teil:"Die Zucker-Teilchen sind einzeln zwischen den Wasser-Teilchen verteilt. Es gibt keine Körnchen und keine Tröpfchen mehr.",
+    kurz:"Zucker-Teilchen einzeln zwischen den Wasser-Teilchen verteilt.",
+    kinds:["wasser","zucker"]
+  },
+  suspension:{
+    title:"Suspension", bsp:"Lehm in Wasser (Lehmwasser)",
+    art:"fest in flüssig", hom:false,
+    medium:"liq", bg:"wasser", cluster:{kind:"lehm",solid:true,n:5,label:"festes Lehm-Körnchen"}, dir:1,
+    obs:"Trüb und undurchsichtig. Kleine Lehm-Körnchen schweben im Wasser.",
+    stand:"Die Lehm-Körnchen sinken nach unten: Es bildet sich ein Bodensatz, darüber wird das Wasser klar.",
+    teil:"Die Lehm-Teilchen bleiben in festen Körnchen zusammen: dicht und regelmäßig angeordnet, an festen Plätzen. Die Körnchen schweben zwischen den Wasser-Teilchen.",
+    kurz:"Feste Körnchen (geordnete Lehm-Teilchen) zwischen den Wasser-Teilchen.",
+    kinds:["wasser","lehm"]
+  },
+  emulsion:{
+    title:"Emulsion", bsp:"Öl in Wasser (geschüttelt)",
+    art:"flüssig in flüssig", hom:false,
+    medium:"liq", bg:"wasser", cluster:{kind:"oel",solid:false,n:5,label:"Öl-Tröpfchen"}, dir:-1,
+    obs:"Trüb und milchig. Feine Öl-Tröpfchen schweben im Wasser.",
+    stand:"Die Öl-Tröpfchen steigen nach oben und vereinigen sich: Auf dem Wasser schwimmt eine Ölschicht.",
+    teil:"Die Öl-Teilchen bleiben in Tröpfchen zusammen: dicht, aber ungeordnet und gegeneinander verschiebbar. Die Tröpfchen schweben zwischen den Wasser-Teilchen.",
+    kurz:"Flüssige Tröpfchen (ungeordnete Öl-Teilchen) zwischen den Wasser-Teilchen.",
+    kinds:["wasser","oel"]
+  },
+  nebel:{
+    title:"Nebel", bsp:"Wasser-Tröpfchen in Luft",
+    art:"flüssig in gasförmig", hom:false,
+    medium:"gas", bg:"luft", cluster:{kind:"wasser",solid:false,n:5,label:"Wasser-Tröpfchen"}, dir:0,
+    obs:"Weißlich trüb. Winzige Wasser-Tröpfchen schweben in der Luft.",
+    stand:"Die winzigen Tröpfchen schweben sehr lange in der Luft. Der Nebel bleibt zunächst bestehen.",
+    teil:"Die Wasser-Teilchen bleiben in Tröpfchen zusammen: dicht, ungeordnet, gegeneinander verschiebbar. Dazwischen bewegen sich die Luft-Teilchen schnell und mit großen Abständen.",
+    kurz:"Flüssige Tröpfchen (ungeordnete Wasser-Teilchen) zwischen weit entfernten Luft-Teilchen.",
+    kinds:["luft","wasser"]
+  },
+  rauch:{
+    title:"Rauch", bsp:"Ruß in Luft",
+    art:"fest in gasförmig", hom:false,
+    medium:"gas", bg:"luft", cluster:{kind:"russ",solid:true,n:5,label:"festes Ruß-Körnchen"}, dir:0,
+    obs:"Grau und trüb. Winzige Ruß-Körnchen schweben in der Luft.",
+    stand:"Die winzigen Körnchen schweben sehr lange in der Luft. Der Rauch bleibt zunächst bestehen.",
+    teil:"Die Ruß-Teilchen bleiben in festen Körnchen zusammen: dicht und regelmäßig angeordnet, an festen Plätzen. Dazwischen bewegen sich die Luft-Teilchen schnell und mit großen Abständen.",
+    kurz:"Feste Körnchen (geordnete Ruß-Teilchen) zwischen weit entfernten Luft-Teilchen.",
+    kinds:["luft","russ"]
+  }
+};
+const ORDER=["loesung","suspension","emulsion","nebel","rauch"];
+
+/* ---------- Simulation der Stoffteilchen ---------- */
+const CS=16, GW=Math.ceil(W/CS), GH=Math.ceil(H/CS);
+
+class Sim{
+  constructor(type){
+    this.type=type; this.cfg=MIX[type];
+    this.grid=Array.from({length:GW*GH},()=>[]);
+    this.s=0; this.shakeT=0;
+    this.init();
+    for(let i=0;i<50;i++) this.step(false);
+  }
+  placeAnchors(rads){
+    const pts=[];
+    for(const rad of rads){
+      let best=null;
+      for(let t=0;t<300;t++){
+        const x=rad+4+Math.random()*(W-2*rad-8), y=rad+4+Math.random()*(H-2*rad-8);
+        let ok=true;
+        for(const q of pts){ if(Math.hypot(q.x-x,q.y-y)<q.rad+rad+10){ok=false;break;} }
+        best={x,y,rad};
+        if(ok) break;
+      }
+      pts.push(best);
+    }
+    return pts;
+  }
+  init(){
+    const c=this.cfg, P=this.P=[], C=this.C=[];
+    const d=R*1.9;
+    if(c.cluster){
+      const cl=c.cluster, defs=[];
+      for(let i=0;i<cl.n;i++){
+        if(cl.solid){
+          const offs=[];
+          if(cl.kind==="lehm"){
+            const lim=(i%2?1.2:1.7);
+            for(let a=-2;a<2;a++)for(let b=-2;b<2;b++){
+              const ox=(a+.5)*d, oy=(b+.5)*d;
+              if(Math.hypot(ox,oy)<=lim*d) offs.push([ox,oy]);
+            }
+          }else{
+            const lim=(i%2?1.1:1.8);
+            for(let a=-3;a<=3;a++)for(let b=-3;b<=3;b++){
+              const ox=(a+b*.5)*d, oy=b*d*0.866;
+              if(Math.hypot(ox,oy)<=lim*d) offs.push([ox,oy]);
+            }
+          }
+          let m=0; for(const o of offs) m=Math.max(m,Math.hypot(o[0],o[1]));
+          defs.push({offs,rad:m+R+1});
+        }else{
+          const n=(c.medium==="gas"? 9+(i%3)*3 : 13+(i%3)*3);
+          defs.push({n,rad:R*Math.sqrt(n/0.7)});
+        }
+      }
+      const pts=this.placeAnchors(defs.map(q=>q.rad));
+      defs.forEach((q,i)=>{
+        const cl2={x:pts[i].x,y:pts[i].y,vx:0,vy:0,a:Math.random()*TAU,om:rnd(.01),rad:q.rad,solid:cl.solid,released:false,tx:0,ty:0};
+        C.push(cl2);
+        if(cl.solid){
+          for(const o of q.offs) P.push({k:cl.kind,mode:"fixed",c:cl2,ox:o[0],oy:o[1],x:cl2.x,y:cl2.y,vx:0,vy:0,a:0,w:0});
+        }else{
+          for(let j=0;j<q.n;j++){
+            const t=Math.random()*TAU, rr=Math.sqrt(Math.random())*(q.rad-R);
+            P.push({k:cl.kind,mode:"liq",c:cl2,x:cl2.x+rr*Math.cos(t),y:cl2.y+rr*Math.sin(t),vx:0,vy:0,a:Math.random()*TAU,w:rnd(.06)});
+          }
+        }
+      });
+    }
+    const free=(x,y)=>{ for(const q of C){ if(Math.hypot(q.x-x,q.y-y)<q.rad+R*0.6) return false; } return true; };
+    if(c.medium==="liq"){
+      const sp=15.3, rows=Math.floor((H-2*R)/(sp*0.866))+1, cols=Math.floor((W-2*R)/sp)+1;
+      for(let r=0;r<rows;r++)for(let q=0;q<cols;q++){
+        const x=R+1+q*sp+(r%2?sp/2:0)+rnd(3), y=R+1+r*sp*0.866+rnd(3);
+        if(x>W-R||y>H-R||!free(x,y)) continue;
+        const k=(c.solute && Math.random()<0.11)? c.solute : c.bg;
+        P.push({k,mode:"liq",c:null,x,y,vx:0,vy:0,a:Math.random()*TAU,w:rnd(.06)});
+      }
+    }else{
+      let n=0, t=0;
+      while(n<30 && t++<3000){
+        const x=R+Math.random()*(W-2*R), y=R+Math.random()*(H-2*R);
+        if(!free(x,y)) continue;
+        const ang=Math.random()*TAU, sp=1.7+Math.random()*0.9;
+        P.push({k:c.bg,mode:"gas",c:null,x,y,vx:sp*Math.cos(ang),vy:sp*Math.sin(ang),sp,a:Math.random()*TAU,w:rnd(.16)});
+        n++;
+      }
+    }
+  }
+  shake(){
+    this.shakeT=100;
+    const pts=this.placeAnchors(this.C.map(q=>q.rad));
+    this.C.forEach((q,i)=>{q.tx=pts[i].x;q.ty=pts[i].y;q.released=false;q.om=rnd(.03);});
+  }
+  step(settle){
+    const c=this.cfg, P=this.P, C=this.C, liqMed=c.medium==="liq";
+    const shaking=this.shakeT>0;
+    if(shaking) this.shakeT--;
+    if(settle && !shaking) this.s=Math.min(1,this.s+1/620); else if(!settle) this.s=Math.max(0,this.s-1/70);
+    const grav=(settle && !shaking)? (c.dir||0)*0.021 : 0;
+
+    /* Körnchen / Tröpfchen als Ganzes */
+    for(const q of C){
+      q.vx+=rnd(liqMed?0.07:0.09); q.vy+=rnd(liqMed?0.07:0.09)+grav;
+      if(shaking){ q.vx+=(q.tx-q.x)*0.012; q.vy+=(q.ty-q.y)*0.012; q.vx*=0.9; q.vy*=0.9; }
+      const dmp=liqMed?0.95:0.975;
+      q.vx*=dmp; q.vy*=dmp; q.x+=q.vx; q.y+=q.vy;
+      if(q.x<q.rad+1){q.x=q.rad+1;q.vx=Math.abs(q.vx)*.5;} if(q.x>W-q.rad-1){q.x=W-q.rad-1;q.vx=-Math.abs(q.vx)*.5;}
+      if(q.y<q.rad+1){q.y=q.rad+1;q.vy=Math.abs(q.vy)*.5;} if(q.y>H-q.rad-1){q.y=H-q.rad-1;q.vy=-Math.abs(q.vy)*.5;}
+      if(q.solid){ q.om+=rnd(0.0015); q.om*=(grav!==0?0.97:0.995); q.a+=q.om; }
+      else if(grav<0 && q.y<q.rad+10) q.released=true;
+    }
+    for(let i=0;i<C.length;i++)for(let j=i+1;j<C.length;j++){
+      const a=C[i], b=C[j]; if(a.released||b.released) continue;
+      const dx=b.x-a.x, dy=b.y-a.y, dd=Math.hypot(dx,dy)||1, min=a.rad+b.rad+3;
+      if(dd<min){ const o=(min-dd)*0.5, nx=dx/dd, ny=dy/dd; a.x-=nx*o; a.y-=ny*o; b.x+=nx*o; b.y+=ny*o;
+        a.vx-=nx*0.02; a.vy-=ny*0.02; b.vx+=nx*0.02; b.vy+=ny*0.02; }
+    }
+
+    /* einzelne Stoffteilchen */
+    const jit=shaking&&liqMed?3.2:0.9;
+    for(const p of P){
+      if(p.mode==="fixed"){
+        const q=p.c, cs=Math.cos(q.a), sn=Math.sin(q.a);
+        p.x=q.x+p.ox*cs-p.oy*sn+rnd(.7); p.y=q.y+p.ox*sn+p.oy*cs+rnd(.7); p.a=q.a;
+        continue;
+      }
+      if(p.mode==="gas"){
+        p.x+=p.vx; p.y+=p.vy; p.a+=p.w;
+        if(p.x<R){p.x=R;p.vx=Math.abs(p.vx);} if(p.x>W-R){p.x=W-R;p.vx=-Math.abs(p.vx);}
+        if(p.y<R){p.y=R;p.vy=Math.abs(p.vy);} if(p.y>H-R){p.y=H-R;p.vy=-Math.abs(p.vy);}
+        continue;
+      }
+      p.vx+=rnd(jit); p.vy+=rnd(jit);
+      const q=p.c;
+      if(q){
+        if(q.released){ p.vy-=0.13; }
+        else{
+          const dx=q.x-p.x, dy=q.y-p.y, dd=Math.hypot(dx,dy)||1, lim=q.rad-R;
+          if(dd>lim){ const f=Math.min(1.6,(dd-lim)*0.09); p.vx+=dx/dd*f; p.vy+=dy/dd*f; }
+        }
+      }else{
+        for(const k of C){ if(k.solid||k.released) continue;
+          const dx=p.x-k.x, dy=p.y-k.y, dd=Math.hypot(dx,dy)||1;
+          if(dd<k.rad+2){ const f=(k.rad+2-dd)*0.25; p.x+=dx/dd*f; p.y+=dy/dd*f; }
+        }
+      }
+      p.vx*=0.85; p.vy*=0.85; p.x+=p.vx; p.y+=p.vy; p.a+=p.w;
+      if(p.x<R){p.x=R;p.vx=0;} if(p.x>W-R){p.x=W-R;p.vx=0;}
+      if(p.y<R){p.y=R;p.vy=0;} if(p.y>H-R){p.y=H-R;p.vy=0;}
+    }
+    this.collide(); if(liqMed) this.collide();
+  }
+  collide(){
+    const P=this.P, G=this.grid, minD=R*1.94;
+    for(const g of G) g.length=0;
+    for(let i=0;i<P.length;i++){
+      const p=P[i];
+      G[clamp(Math.floor(p.y/CS),0,GH-1)*GW+clamp(Math.floor(p.x/CS),0,GW-1)].push(i);
+    }
+    for(let cy=0;cy<GH;cy++)for(let cx=0;cx<GW;cx++){
+      const cell=G[cy*GW+cx]; if(!cell.length) continue;
+      for(let oy=0;oy<=1;oy++)for(let ox=(oy===0?0:-1);ox<=1;ox++){
+        const nx_=cx+ox, ny_=cy+oy; if(nx_<0||nx_>=GW||ny_>=GH) continue;
+        const other=G[ny_*GW+nx_], same=(ox===0&&oy===0);
+        for(let ii=0;ii<cell.length;ii++){
+          const a=P[cell[ii]];
+          for(let jj=same?ii+1:0;jj<other.length;jj++){
+            const b=P[other[jj]];
+            const af=a.mode==="fixed", bf=b.mode==="fixed";
+            if(af&&bf) continue;
+            const dx=b.x-a.x, dy=b.y-a.y, d2=dx*dx+dy*dy;
+            if(d2>=minD*minD) continue;
+            const dd=Math.sqrt(d2)||0.01, nx=dx/dd, ny=dy/dd, o=(minD-dd)*0.6;
+            const wa=af?0:(bf?1:.5), wb=bf?0:(af?1:.5);
+            a.x-=nx*o*wa; a.y-=ny*o*wa; b.x+=nx*o*wb; b.y+=ny*o*wb;
+            if(a.mode==="gas"){ const vn=a.vx*nx+a.vy*ny; if(vn>0){a.vx-=2*vn*nx;a.vy-=2*vn*ny;} if(b.mode==="liq"){b.vx+=nx*.25;b.vy+=ny*.25;} }
+            if(b.mode==="gas"){ const vn=b.vx*nx+b.vy*ny; if(vn<0){b.vx-=2*vn*nx;b.vy-=2*vn*ny;} if(a.mode==="liq"){a.vx-=nx*.25;a.vy-=ny*.25;} }
+          }
+        }
+      }
+    }
+  }
+  draw(ctx,mark){
+    ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,W,H);
+    const byKind={};
+    for(const p of this.P) (byKind[p.k]||(byKind[p.k]=[])).push(p);
+    ctx.lineWidth=1; ctx.lineJoin="round";
+    for(const k of this.cfg.kinds){
+      const arr=byKind[k]; if(!arr) continue;
+      const K=KIND[k];
+      ctx.beginPath();
+      for(const p of arr) pathShape(ctx,K.shape,p.x,p.y,p.a);
+      ctx.fillStyle=K.fill; ctx.fill();
+      ctx.strokeStyle=K.edge; ctx.stroke();
+    }
+    if(mark && this.cfg.cluster){
+      ctx.save();
+      ctx.setLineDash([5,4]); ctx.lineWidth=1.6; ctx.strokeStyle="#111827";
+      let first=null;
+      for(const q of this.C){ if(q.released) continue;
+        ctx.beginPath(); ctx.arc(q.x,q.y,q.rad+3,0,TAU); ctx.stroke();
+        if(!first || q.rad>first.rad) first=q;
+      }
+      ctx.setLineDash([]);
+      if(first){
+        const txt=this.cfg.cluster.label;
+        ctx.font="600 11px Segoe UI, Arial, sans-serif";
+        const tw=ctx.measureText(txt).width+12;
+        const lx=clamp(first.x-tw/2,3,W-tw-3);
+        const ly=(first.y-first.rad-24>3)? first.y-first.rad-24 : first.y+first.rad+7;
+        ctx.fillStyle="rgba(255,255,255,.93)"; ctx.strokeStyle="#111827"; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.rect(lx,ly,tw,17); ctx.fill(); ctx.stroke();
+        ctx.fillStyle="#111827"; ctx.textBaseline="middle"; ctx.fillText(txt,lx+6,ly+9);
+      }
+      ctx.restore();
+    }
+  }
+}
+
+/* ---------- Stoffebene (glatte Darstellung) ---------- */
+function drawMacro(ctx,type,s){
+  const c=MIX[type];
+  ctx.fillStyle="#eef1f5"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="#d9dee6"; ctx.fillRect(0,236,W,24);           // Tisch
+  // Streifenkarte
+  ctx.fillStyle="#ffffff"; ctx.fillRect(62,22,196,214);
+  ctx.fillStyle="#1d2a4a"; for(let y=30;y<230;y+=16) ctx.fillRect(62,y,196,7);
+  ctx.strokeStyle="#aab3c0"; ctx.lineWidth=1; ctx.strokeRect(62.5,22.5,195,213);
+
+  const xL=98, xR=222, yTop=40, yB=230, wd=xR-xL;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(xL,yTop,wd,yB-yTop); ctx.clip();
+  if(c.medium==="liq"){
+    const yT=74, hh=yB-yT;
+    ctx.fillStyle="rgba(150,195,235,0.26)"; ctx.fillRect(xL,yT,wd,hh);
+    if(type==="suspension"){
+      const front=-0.18+s*1.36;
+      for(let y=yT;y<yB;y+=2){ const f=(y-yT)/hh; const al=0.96*sm(front-.18,front+.18,f);
+        if(al>0.004){ ctx.fillStyle="rgba(176,126,78,"+al.toFixed(3)+")"; ctx.fillRect(xL,y,wd,2); } }
+      const hs=26*s*s; ctx.fillStyle="#7c4d27"; ctx.fillRect(xL,yB-hs,wd,hs);
+    }else if(type==="emulsion"){
+      const front=-0.18+s*1.36;
+      for(let y=yT;y<yB;y+=2){ const f=1-(y-yT)/hh; const al=0.96*sm(front-.18,front+.18,f);
+        if(al>0.004){ ctx.fillStyle="rgba(244,235,198,"+al.toFixed(3)+")"; ctx.fillRect(xL,y,wd,2); } }
+      const ho=30*s*s; ctx.fillStyle="rgba(240,186,22,0.82)"; ctx.fillRect(xL,yT,wd,ho);
+    }
+    ctx.strokeStyle="rgba(60,110,170,.55)"; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(xL,yT); ctx.lineTo(xR,yT); ctx.stroke();
+  }else{
+    ctx.fillStyle = type==="nebel" ? "rgba(255,255,255,0.80)" : "rgba(78,78,86,0.80)";
+    ctx.fillRect(xL,yTop+4,wd,yB-yTop-4);
+  }
+  ctx.restore();
+  // Glasgefäß
+  ctx.strokeStyle="#6f7c8d"; ctx.lineWidth=2.5; ctx.lineJoin="round";
+  ctx.beginPath(); ctx.moveTo(xL,yTop); ctx.lineTo(xL,yB); ctx.lineTo(xR,yB); ctx.lineTo(xR,yTop); ctx.stroke();
+  ctx.strokeStyle="rgba(255,255,255,.7)"; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(xL+8,yTop+14); ctx.lineTo(xL+8,yB-14); ctx.stroke();
+  if(c.medium==="gas"){ // Deckel
+    ctx.fillStyle="#8a95a5"; ctx.fillRect(xL-8,yTop-5,wd+16,7);
+  }
+}
+
+/* ---------- Oberfläche ---------- */
+const $=id=>document.getElementById(id);
+const sims={}; ORDER.forEach(t=>sims[t]=new Sim(t));
+let current="loesung", compare=false, settle=false, paused=false;
+
+function fit(cv){
+  const dpr=Math.min(window.devicePixelRatio||1,2), w=Math.round(cv.clientWidth*dpr);
+  if(w && cv.width!==w){ cv.width=w; cv.height=Math.round(w*H/W); }
+  const ctx=cv.getContext("2d"); ctx.setTransform(cv.width/W,0,0,cv.width/W,0,0); return ctx;
+}
+function legendItem(k){
+  const it=document.createElement("span"); it.className="it";
+  const cv=document.createElement("canvas"); cv.width=60; cv.height=48;
+  const ctx=cv.getContext("2d"); ctx.setTransform(2.4,0,0,2.4,0,0);
+  ctx.beginPath(); pathShape(ctx,KIND[k].shape,12.5,10,k==="wasser"?-0.4:-Math.PI/2);
+  ctx.fillStyle=KIND[k].fill; ctx.fill(); ctx.strokeStyle=KIND[k].edge; ctx.lineWidth=1; ctx.stroke();
+  it.appendChild(cv); it.appendChild(document.createTextNode(KIND[k].name));
+  return it;
+}
+
+// Tabs
+const tabs=$("tabs");
+ORDER.forEach(t=>{
+  const b=document.createElement("button"); b.textContent=MIX[t].title; b.dataset.t=t;
+  b.onclick=()=>{compare=false; current=t; refresh();}; tabs.appendChild(b);
+});
+{ const b=document.createElement("button"); b.textContent="Alle im Vergleich"; b.className="cmp"; b.dataset.t="cmp";
+  b.onclick=()=>{compare=true; refresh();}; tabs.appendChild(b); }
+
+// Vergleichskarten
+const cmp={};
+ORDER.forEach(t=>{
+  const c=MIX[t], el=document.createElement("div"); el.className="panel";
+  el.innerHTML='<h2></h2><p class="sub"></p><div class="cap">Stoffebene</div><canvas></canvas>'+
+    '<div class="cap">Stoffteilchenebene</div><canvas></canvas><p class="txt"></p><span class="badge"></span>';
+  el.querySelector("h2").textContent=c.title;
+  el.querySelector(".sub").textContent=c.bsp+" – "+c.art;
+  el.querySelector(".txt").textContent=c.kurz;
+  const bd=el.querySelector(".badge"); bd.textContent=c.hom?"homogen":"heterogen"; bd.classList.add(c.hom?"hom":"het");
+  const cvs=el.querySelectorAll("canvas"); cmp[t]={macro:cvs[0],micro:cvs[1]};
+  $("cmpgrid").appendChild(el);
+});
+
+function refresh(){
+  for(const b of tabs.children) b.classList.toggle("on", compare? b.dataset.t==="cmp" : b.dataset.t===current);
+  $("single").hidden=compare; $("compare").hidden=!compare;
+  $("btnSettle").textContent=settle?"Schütteln / Umrühren":"Stehen lassen";
+  $("btnPause").textContent=paused?"Weiter":"Pause";
+  $("state").textContent=settle?"Zustand: Das Gemisch steht ruhig.":"Zustand: frisch gemischt.";
+  const c=MIX[current];
+  $("obs").textContent=settle?c.stand:c.obs;
+  $("fBsp").textContent=c.bsp;
+  $("fArt").textContent=c.art+" – "+(c.hom?"homogenes Gemisch (einheitlich)":"heterogenes Gemisch (uneinheitlich)");
+  $("fTeil").textContent=c.teil;
+  const lg=$("legend"); lg.innerHTML=""; c.kinds.forEach(k=>lg.appendChild(legendItem(k)));
+}
+$("btnSettle").onclick=()=>{ settle=!settle; if(!settle) ORDER.forEach(t=>sims[t].shake()); refresh(); };
+$("btnPause").onclick=()=>{ paused=!paused; refresh(); };
+
+let last=performance.now(), acc=0;
+function frame(now){
+  const dt=Math.min(100,now-last); last=now;
+  const active=compare?ORDER:[current];
+  if(!paused){
+    acc+=dt; let n=0;
+    while(acc>=16.6 && n<3){ for(const t of active) sims[t].step(settle); acc-=16.6; n++; }
+    if(n===3) acc=0;
+  }
+  const mark=$("chkMark").checked;
+  if(compare){
+    for(const t of ORDER){ drawMacro(fit(cmp[t].macro),t,sims[t].s); sims[t].draw(fit(cmp[t].micro),mark); }
+  }else{
+    drawMacro(fit($("macro")),current,sims[current].s); sims[current].draw(fit($("micro")),mark);
+  }
+  requestAnimationFrame(frame);
+}
+refresh();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
